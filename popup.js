@@ -377,23 +377,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Update file button - downloads ZIP from GitHub
-  const updateFileBtn = document.getElementById('updateFileBtn');
-
-  if (updateFileBtn) {
-    updateFileBtn.addEventListener('click', () => {
-      // Create invisible link and trigger download
+  // Button 1: Download update from GitHub
+  const downloadUpdateBtn = document.getElementById('downloadUpdateBtn');
+  if (downloadUpdateBtn) {
+    downloadUpdateBtn.addEventListener('click', () => {
+      // Simple download via link
       const link = document.createElement('a');
       link.href = GITHUB_UPDATE_URL;
-      link.download = ''; // Browser will use filename from URL
+      link.download = '';
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
-      // Show feedback
       showStatus('success', '✓ Скачивание начато! Проверьте папку "Загрузки".');
       setTimeout(hideStatus, 5000);
+    });
+  }
+
+  // Button 2: Open chrome://extensions/ page
+  const openExtensionsBtn = document.getElementById('openExtensionsBtn');
+  if (openExtensionsBtn) {
+    openExtensionsBtn.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'chrome://extensions/' });
     });
   }
 });

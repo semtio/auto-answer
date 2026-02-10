@@ -478,15 +478,26 @@
         </div>
         <div class="aa-modal-body">
           <div class="aa-result-text">${content}</div>
+          ${!isError ? `
+            <div class="aa-refinement-section">
+              <label class="aa-refinement-label">✨ Скорректировать ответ:</label>
+              <textarea
+                class="aa-refinement-input"
+                placeholder="Например: сделай текст короче в 2 раза, используй только заглавные буквы..."
+                rows="2"
+              ></textarea>
+            </div>
+          ` : ''}
         </div>
         <div class="aa-modal-footer">
+          ${!isError ? '<button class="aa-btn aa-btn-secondary" data-action="refine">🔄 Скорректировать</button>' : ''}
           ${!isError ? '<button class="aa-btn aa-btn-primary" data-action="copy">📋 Скопировать</button>' : ''}
           <button class="aa-btn aa-btn-secondary" data-action="close">Закрыть</button>
         </div>
       </div>
     `;
 
-    resultModal.addEventListener('click', (e) => {
+    resultModal.addEventListener('click', async (e) => {
       const action = e.target.dataset.action;
       if (action === 'close' || e.target === resultModal) {
         console.log('[AA] Modal close action triggered');
@@ -494,6 +505,17 @@
       } else if (action === 'copy') {
         console.log('[AA] Copy action triggered');
         copyToClipboard(content);
+      } else if (action === 'refine') {
+        console.log('[AA] Refine action triggered');
+        const refinementInput = resultModal.querySelector('.aa-refinement-input');
+        const refinementText = refinementInput?.value.trim();
+
+        if (!refinementText) {
+          alert('Пожалуйста, введите инструкции для корректировки');
+          return;
+        }
+
+        await refineAnswer(content, refinementText);
       }
     });
 
@@ -504,6 +526,106 @@
       resultModal?.classList.add('aa-show');
       console.log('[AA] Modal animated in');
     }, 10);
+  }
+
+  async function refineAnswer(currentAnswer, refinementInstructions) {
+    console.log('[AA] Refining answer with instructions:', refinementInstructions);
+
+    // Update modal to show loading state
+    const resultText = resultModal?.querySelector('.aa-result-text');
+    const refinementInput = resultModal?.querySelector('.aa-refinement-input');
+    const refineBtn = resultModal?.querySelector('[data-action="refine"]');
+
+    if (refineBtn) {
+      refineBtn.disabled = true;
+      refineBtn.textContent = '⏳ Обработка...';
+    }
+
+    try {
+      // Get settings
+      const settings = await chrome.storage.local.get([
+        'apiKey',
+        'answerLanguage',
+        'gptModel'
+      ]);
+
+      if (!settings.apiKey) {
+        alert('API ключ не настроен');
+        return;
+      }
+
+      const language = settings.answerLanguage || 'ru';
+      const languageInstruction = language === 'ru'
+        ? 'Отвечай на русском языке.'
+        : 'Answer in English.';
+
+      const systemPrompt = `Ты - AI помощник для корректировки текстов. ${languageInstruction}\n\nТвоя задача - скорректировать предоставленный текст согласно инструкциям пользователя. Сохрани основной смысл, но примени указанные изменения.`;
+
+      const userPrompt = `Текущий текст:\n${currentAnswer}\n\nИнструкции по корректировке:\n${refinementInstructions}\n\nВыполни корректировку и верни только исправленный текст.`;
+
+      const model = settings.gptModel || 'gpt-4o-mini';
+      console.log('[AA] Calling OpenAI API for refinement, model:', model);
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${settings.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.7,
+          max_tokens: 800
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Ошибка API');
+      }
+
+      const data = await response.json();
+      const refinedAnswer = data.choices[0]?.message?.content || 'Нет ответа';
+
+      console.log('[AA] Refined answer received');
+
+      // Update modal with new answer with animation
+      if (resultText) {
+        resultText.style.opacity = '0.3';
+        setTimeout(() => {
+          resultText.textContent = refinedAnswer;
+          resultText.style.opacity = '1';
+        }, 150);
+      }
+
+      // Clear refinement input
+      if (refinementInput) {
+        refinementInput.value = '';
+      }
+
+      // Restore button
+      if (refineBtn) {
+        refineBtn.disabled = false;
+        refineBtn.textContent = '🔄 Скорректировать';
+      }
+
+      // Save refined answer to storage
+      await chrome.storage.local.set({ lastGeneratedAnswer: refinedAnswer });
+
+    } catch (error) {
+      console.error('[AA] Refinement error:', error);
+      alert(`Ошибка корректировки: ${error.message}`);
+
+      // Restore button
+      if (refineBtn) {
+        refineBtn.disabled = false;
+        refineBtn.textContent = '🔄 Скорректировать';
+      }
+    }
   }
 
   function hideResultModal() {
@@ -723,6 +845,54 @@
         color: #1e293b;
         white-space: pre-wrap;
         word-wrap: break-word;
+        transition: opacity 0.2s ease;
+      }
+
+      .aa-refinement-section {
+        margin-top: 20px;
+        padding: 16px;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+        border-radius: 12px;
+        border: 2px solid rgba(102, 126, 234, 0.15);
+      }
+
+      .aa-refinement-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 10px;
+      }
+
+      .aa-refinement-input {
+        width: 100%;
+        padding: 12px 14px;
+        border: 2px solid rgba(102, 126, 234, 0.2);
+        border-radius: 10px;
+        font-size: 14px;
+        line-height: 1.5;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        resize: vertical;
+        transition: all 0.3s ease;
+        box-sizing: border-box;
+        background: white;
+      }
+
+      .aa-refinement-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.12), 0 4px 12px rgba(102, 126, 234, 0.15);
+        transform: translateY(-1px);
+      }
+
+      .aa-refinement-input::placeholder {
+        color: #94a3b8;
+        font-size: 13px;
       }
 
       .aa-modal-footer {

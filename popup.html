@@ -99,12 +99,20 @@
         <label class="label">
           <span class="label-text">Обновление расширения</span>
         </label>
-        <button id="updateFileBtn" class="btn btn-secondary">
-          <span class="btn-icon">
-            <i class="fas fa-download"></i>
-          </span>
-          <span class="btn-text">Загрузить обновление (.zip)</span>
-        </button>
+        <div style="display: flex; gap: 8px; flex-direction: column;">
+          <button id="downloadUpdateBtn" class="btn btn-secondary">
+            <span class="btn-icon">
+              <i class="fas fa-download"></i>
+            </span>
+            <span class="btn-text">Скачать обновление</span>
+          </button>
+          <button id="openExtensionsBtn" class="btn btn-secondary">
+            <span class="btn-icon">
+              <i class="fas fa-sync"></i>
+            </span>
+            <span class="btn-text">Открыть управление расширениями</span>
+          </button>
+        </div>
         <div class="hint">
           ⚠️ Важно: После установки расширения не перемещайте папку на жестком диске. Это приведет к неработоспособности расширения.
         </div>

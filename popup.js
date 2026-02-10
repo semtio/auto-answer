@@ -4,7 +4,7 @@
 // URL для скачивания обновления с GitHub
 // Формат: https://github.com/OWNER/REPO/archive/refs/heads/main.zip
 // или: https://github.com/OWNER/REPO/releases/latest/download/FILENAME.zip
-const GITHUB_UPDATE_URL = '';
+const GITHUB_UPDATE_URL = 'https://github.com/semtio/auto-answer/archive/refs/heads/main.zip';
 
 // ==========================================
 // DOM Elements - Get them lazily to avoid timing issues

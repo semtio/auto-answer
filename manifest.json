@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Auto Answer GPT",
+  "name": "GPT Helper",
   "version": "1.0.0",
   "description": "Автоматические ответы с использованием GPT API",
   "permissions": [
@@ -17,7 +17,14 @@
     "file:///*"
   ],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": "icons/logo.png"
+  },
+  "icons": {
+    "16": "icons/logo.png",
+    "32": "icons/logo.png",
+    "48": "icons/logo.png",
+    "128": "icons/logo.png"
   },
   "background": {
     "service_worker": "background.js"

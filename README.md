@@ -1,4 +1,4 @@
-# Auto Answer GPT - Chrome Extension
+# GPT Helper - Chrome Extension
 
 Модульное расширение для Chrome, которое использует OpenAI GPT API для генерации ответов на основе выбранного текста на странице. Расширение имеет встроенный UI на странице и модульную архитектуру для легкого добавления новых функций.
 
@@ -329,7 +329,7 @@ await loadModule('my-module');
 
 **Открыть консоль расширения:**
 1. `chrome://extensions/`
-2. Найдите "Auto Answer GPT"
+2. Найдите "GPT Helper"
 3. Нажмите "Inspect views: service worker" или "Inspect popup"
 
 **Посмотреть хранилище в консоли:**

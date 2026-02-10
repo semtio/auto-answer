@@ -1,6 +1,6 @@
-// Background service worker for Auto Answer GPT extension
+// Background service worker for GPT Helper extension
 
-console.log('Auto Answer GPT background service worker loaded');
+console.log('GPT Helper background service worker loaded');
 
 // Store popup port for relay messages
 let popupPort = null;

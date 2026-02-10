@@ -1,0 +1,162 @@
+<!-- Element Selector Tool -->
+<div class="section">
+  <button id="selectElementBtn" class="btn btn-secondary element-selector-btn">
+    <span class="btn-icon">
+      <i class="fas fa-arrow-pointer"></i>
+    </span>
+    <span class="btn-text">Выбрать элемент</span>
+  </button>
+  <div id="selectorStatus" class="hint" style="display: none;"></div>
+</div>
+
+<!-- Input field: Text from selected element -->
+<div class="section">
+  <label class="label">
+    <span class="label-text">Текст вопроса</span>
+  </label>
+  <textarea
+    id="inputText"
+    class="textarea"
+    placeholder="Выберите элемент со стрелочкой или напишите/вставьте текст вручную..."
+    rows="4"
+  ></textarea>
+</div>
+
+<!-- Output field: Generated answer -->
+<div class="section">
+  <label class="label">
+    <span class="label-text">Ответ GPT</span>
+  </label>
+  <textarea
+    id="answerText"
+    class="textarea"
+    placeholder="Здесь появится сгенерированный ответ..."
+    rows="4"
+    readonly
+  ></textarea>
+</div>
+
+<!-- Generate button -->
+<div class="section">
+  <button id="generateAnswer" class="btn btn-primary">
+    <span class="btn-icon">
+      <i class="fas fa-bolt"></i>
+    </span>
+    <span class="btn-text">Сгенерировать ответ</span>
+  </button>
+</div>
+
+<!-- Settings Section -->
+<div class="settings-section">
+  <h3 class="settings-title">
+    <i class="fas fa-sliders-h"></i>
+    <span>Настройки</span>
+  </h3>
+
+  <!-- Knowledge Base Upload -->
+  <div class="section">
+    <label class="label">
+      <span class="label-text">База данных</span>
+      <span class="label-hint">(используется как контекст для ответов)</span>
+    </label>
+    <div class="file-upload">
+      <input
+        type="file"
+        id="baseFile"
+        class="file-input"
+        accept=".txt,.md,.pdf,.json"
+        style="display: none;"
+      />
+      <button id="baseFileBtn" class="btn btn-secondary file-upload-btn">
+        <span class="btn-icon">
+          <i class="fas fa-upload"></i>
+        </span>
+        <span class="btn-text">Загрузить базу</span>
+      </button>
+      <div id="baseFileName" class="file-name">
+        <span id="baseFileNameText" class="file-name-text"></span>
+        <button id="baseFileDeleteBtn" class="file-delete-icon-btn" style="display: none;" title="Удалить файл базы данных">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    </div>
+    <div class="hint">
+      Поддерживаемые форматы: TXT, MD, PDF, JSON
+    </div>
+  </div>
+
+  <!-- Positive Prompt -->
+  <div class="section">
+    <label class="label">
+      <span class="label-text">Промпт</span>
+      <span class="label-hint">(инструкция как отвечать)</span>
+    </label>
+    <textarea
+      id="positivePrompt"
+      class="textarea"
+      placeholder="Например: Отвечай кратко в 2-3 предложения, используй формальный тон, включай примеры из базы"
+      rows="3"
+    ></textarea>
+  </div>
+
+  <!-- Negative Prompt -->
+  <div class="section">
+    <label class="label">
+      <span class="label-text">Минус-промпт</span>
+      <span class="label-hint">(чего НЕ делать)</span>
+    </label>
+    <textarea
+      id="negativePrompt"
+      class="textarea"
+      placeholder="Например: Не давай советы, не упоминай конкурентов, не используй сленг"
+      rows="3"
+    ></textarea>
+  </div>
+
+  <!-- Answer Language -->
+  <div class="section">
+    <label class="label">
+      <span class="label-text">Язык ответа</span>
+    </label>
+    <select id="answerLanguage" class="select">
+      <option value="ru">Русский</option>
+      <option value="en">English</option>
+    </select>
+  </div>
+
+  <!-- GPT Model Selection -->
+  <div class="section">
+    <label class="label">
+      <span class="label-text">Модель GPT</span>
+    </label>
+    <select id="gptModel" class="select">
+      <option value="gpt-3.5-turbo">GPT-3.5 Turbo (быстрая, для тестирования)</option>
+      <option value="gpt-4o-mini" selected>GPT-4o Mini (баланс цена/качество)</option>
+      <option value="gpt-4o">GPT-4o (универсальная, мощная)</option>
+      <option value="gpt-4-turbo">GPT-4 Turbo (максимальная точность)</option>
+    </select>
+    <div id="modelDescription" class="hint model-description">
+      <!-- Model description will be shown here -->
+    </div>
+  </div>
+
+  <!-- History Section -->
+  <div class="section">
+    <div class="history-header">
+      <label class="label">
+        <span class="label-text">📜 История ответов</span>
+      </label>
+      <button id="openFullHistory" class="btn-link">
+        <i class="fas fa-external-link-alt"></i>
+        Вся история
+      </button>
+    </div>
+
+    <div id="historyContainer" class="history-container">
+      <div class="history-empty">
+        <i class="fas fa-history"></i>
+        <span>История пуста</span>
+      </div>
+    </div>
+  </div>
+</div>

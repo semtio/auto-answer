@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Auto Answer GPT",
+  "version": "1.0.0",
+  "description": "Автоматические ответы с использованием GPT API",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "tabs",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://api.openai.com/*",
+    "https://*/*",
+    "http://*/*",
+    "file:///*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*/*", "http://*/*", "file:///*"],
+      "js": ["content.js"],
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["modules/*/*.js", "modules/*/*.html", "modules/*/*.css"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

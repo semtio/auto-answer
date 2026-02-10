@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auto Answer GPT</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="popup.css">
+  <link rel="stylesheet" href="modules/answer/answer.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <div class="logo">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="14" fill="url(#gradient)" />
+            <path d="M16 8L20 16L16 24L12 16L16 8Z" fill="white" opacity="0.9"/>
+            <defs>
+              <linearGradient id="gradient" x1="0" y1="0" x2="32" y2="32">
+                <stop offset="0%" stop-color="#667eea" />
+                <stop offset="100%" stop-color="#764ba2" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <h1>Auto Answer GPT</h1>
+      </div>
+      <div class="dropdown">
+        <button class="dropdown-btn" id="dropdownBtn">
+          <i class="fas fa-comment"></i>
+          <span>Ответить</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="dropdown-content" id="dropdownContent">
+          <a href="#" class="dropdown-item active" data-tab="answer">
+            <i class="fas fa-comment"></i>
+            <span>Ответить</span>
+          </a>
+        </div>
+      </div>
+      <button class="settings-btn" data-tab="settings" title="Настройки">
+        <i class="fas fa-cog"></i>
+      </button>
+    </div>
+
+    <!-- Выпадающий список вместо вкладок -->
+
+    <!-- Tab Content: Ответить -->
+    <div class="tab-content active" id="tab-answer">
+      <!-- Content loaded from modules/answer/answer.html -->
+    </div>
+
+    <!-- Tab Content: Настройки -->
+    <div class="tab-content" id="tab-settings">
+      <div class="section">
+        <label for="apiKey" class="label">
+          <span class="label-text">API Ключ OpenAI</span>
+          <span class="label-badge">Обязательно</span>
+        </label>
+        <div class="input-group">
+          <input
+            type="password"
+            id="apiKey"
+            class="input"
+            placeholder="sk-..."
+            autocomplete="off"
+          />
+          <button id="toggleKey" class="toggle-btn" title="Показать/скрыть">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+        <div class="hint">
+          Получите API ключ на <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a>
+        </div>
+      </div>
+      <div class="section">
+        <button id="testConnection" class="btn btn-primary">
+          <span class="btn-icon">
+            <i class="fas fa-plug"></i>
+          </span>
+          <span class="btn-text">Проверить подключение</span>
+        </button>
+      </div>
+      <div id="statusMessage" class="status-message hidden">
+        <div class="status-icon"></div>
+        <span class="status-text"></span>
+      </div>
+      <div class="section">
+        <button id="saveSettings" class="btn btn-success">
+          <span class="btn-icon">
+            <i class="fas fa-save"></i>
+          </span>
+          <span class="btn-text">Сохранить настройки</span>
+        </button>
+      </div>
+      <div class="section">
+        <label class="label">
+          <span class="label-text">Обновление расширения</span>
+        </label>
+        <button id="updateFileBtn" class="btn btn-secondary">
+          <span class="btn-icon">
+            <i class="fas fa-download"></i>
+          </span>
+          <span class="btn-text">Загрузить обновление (.zip)</span>
+        </button>
+        <div class="hint">
+          ⚠️ Важно: После установки расширения не перемещайте папку на жестком диске. Это приведет к неработоспособности расширения.
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div class="footer-content">
+        <div class="version">v1.0.0</div>
+        <a href="https://t.me/semtio" target="_blank" class="telegram-link">
+          <i class="fab fa-telegram"></i>
+          @semtio
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

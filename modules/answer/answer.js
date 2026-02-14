@@ -365,10 +365,11 @@ function initAnswerModule(elements, showSelectorStatus, hideSelectorStatus, show
 
   // ========== HISTORY FUNCTIONS ==========
 
-  // Save to history
+  // Save to history (tab-isolated)
   async function saveToHistory(question, answer) {
     const now = new Date();
-    const dateKey = `history_${formatDateKey(now)}`;
+    const currentTabId = window.getCurrentTabId?.() || 1;
+    const dateKey = `tab_${currentTabId}_history_${formatDateKey(now)}`;
     const time = formatTime(now);
 
     // Get existing history for today
@@ -385,18 +386,20 @@ function initAnswerModule(elements, showSelectorStatus, hideSelectorStatus, show
 
     // Save back
     await chrome.storage.local.set({ [dateKey]: todayHistory });
-    console.log('Saved to history:', dateKey, todayHistory.length, 'entries');
+    console.log('[History] Saved to tab history:', dateKey, todayHistory.length, 'entries');
   }
 
-  // Load and display history widget (last 5 days)
+  // Load and display history widget (last 5 days, tab-isolated)
   async function loadHistoryWidget() {
     if (!elements.historyContainer) return;
 
+    const currentTabId = window.getCurrentTabId?.() || 1;
     const data = await chrome.storage.local.get(null);
 
-    // Filter history keys
+    // Filter history keys for current tab only
+    const historyPrefix = `tab_${currentTabId}_history_`;
     const historyKeys = Object.keys(data)
-      .filter(key => key.startsWith('history_'))
+      .filter(key => key.startsWith(historyPrefix))
       .sort((a, b) => b.localeCompare(a)); // Descending
 
     // Take only last 5 days
@@ -417,7 +420,8 @@ function initAnswerModule(elements, showSelectorStatus, hideSelectorStatus, show
       const entries = data[dateKey];
       if (!entries || entries.length === 0) return;
 
-      const date = dateKey.replace('history_', '');
+      // Extract date from key: tab_{id}_history_{date} -> {date}
+      const date = dateKey.split('_history_')[1];
       const dateObj = new Date(date);
       const formattedDate = formatDateLabel(dateObj);
       const isExpanded = index === 0; // Only today expanded by default
@@ -507,7 +511,6 @@ function initAnswerModule(elements, showSelectorStatus, hideSelectorStatus, show
             <i class="fas fa-copy"></i>
             Копировать ответ
           </button>
-          <button class="btn btn-secondary history-modal-close">Закрыть</button>
         </div>
       </div>
     `;
@@ -572,4 +575,7 @@ function initAnswerModule(elements, showSelectorStatus, hideSelectorStatus, show
 
   // Load history widget on init
   loadHistoryWidget();
+
+  // Make loadHistoryWidget global for tab switching
+  window.loadHistoryWidget = loadHistoryWidget;
 }

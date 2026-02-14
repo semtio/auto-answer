@@ -614,6 +614,13 @@
       // Save refined answer to storage
       await chrome.storage.local.set({ lastGeneratedAnswer: refinedAnswer });
 
+      // Save refined answer to history
+      await saveToHistory(
+        `${selectedText} 🔄 (скорректировано: ${refinementInstructions})`,
+        refinedAnswer
+      );
+      console.log('[AA] Refined answer saved to history');
+
     } catch (error) {
       console.error('[AA] Refinement error:', error);
       alert(`Ошибка корректировки: ${error.message}`);
@@ -644,10 +651,15 @@
   // ========== HISTORY ==========
   async function saveToHistory(question, answer) {
     const now = new Date();
-    const dateKey = `history_${formatDateKey(now)}`;
     const time = formatTime(now);
 
     try {
+      // Get current tab ID from storage (for tab-isolated history)
+      const tabData = await chrome.storage.local.get(['currentTabId']);
+      const currentTabId = tabData.currentTabId || 1;
+
+      const dateKey = `tab_${currentTabId}_history_${formatDateKey(now)}`;
+
       // Get existing history for today
       const data = await chrome.storage.local.get(dateKey);
       const todayHistory = data[dateKey] || [];
@@ -662,7 +674,7 @@
 
       // Save back
       await chrome.storage.local.set({ [dateKey]: todayHistory });
-      console.log('[AA] History saved:', dateKey, todayHistory.length, 'entries');
+      console.log('[AA] History saved to tab:', currentTabId, dateKey, todayHistory.length, 'entries');
     } catch (error) {
       console.error('[AA] Failed to save history:', error);
     }

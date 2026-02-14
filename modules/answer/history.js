@@ -2,15 +2,25 @@
 
 let allHistory = {};
 let filteredHistory = {};
+let currentTabId = 1;
 
-// Load history from storage
+// Load current tab ID from storage
+async function loadCurrentTabId() {
+  const data = await chrome.storage.local.get(['currentTabId']);
+  currentTabId = data.currentTabId || 1;
+  console.log('[History] Current tab ID:', currentTabId);
+}
+
+// Load history from storage (tab-isolated)
 async function loadHistory() {
+  await loadCurrentTabId();
   const data = await chrome.storage.local.get(null);
 
-  // Filter only history keys
+  // Filter only history keys for current tab
+  const historyPrefix = `tab_${currentTabId}_history_`;
   allHistory = {};
   Object.keys(data).forEach(key => {
-    if (key.startsWith('history_')) {
+    if (key.startsWith(historyPrefix)) {
       allHistory[key] = data[key];
     }
   });
@@ -41,7 +51,8 @@ function renderHistory() {
 
   let html = '';
   sortedDates.forEach(dateKey => {
-    const date = dateKey.replace('history_', '');
+    // Extract date from key: tab_{id}_history_{date} -> {date}
+    const date = dateKey.split('_history_')[1];
     const entries = filteredHistory[dateKey];
 
     if (!entries || entries.length === 0) return;
@@ -108,7 +119,7 @@ function updateStats() {
   let todayCount = 0;
 
   const today = new Date();
-  const todayKey = `history_${formatDateKey(today)}`;
+  const todayKey = `tab_${currentTabId}_history_${formatDateKey(today)}`;
   const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   Object.keys(allHistory).forEach(key => {
@@ -119,7 +130,8 @@ function updateStats() {
       todayCount += entries.length;
     }
 
-    const dateStr = key.replace('history_', '');
+    // Extract date from key: tab_{id}_history_{date} -> {date}
+    const dateStr = key.split('_history_')[1];
     const date = new Date(dateStr);
     if (date >= weekAgo) {
       weekCount += entries.length;

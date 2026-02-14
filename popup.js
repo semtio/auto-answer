@@ -155,6 +155,11 @@ async function loadTabData(tabId) {
     baseFileName: tabData.baseFileName || ''
   });
   console.log('[Tabs] Глобальные ключи синхронизированы для content.js');
+
+  // Reload history widget for new tab
+  if (window.loadHistoryWidget) {
+    await window.loadHistoryWidget();
+  }
 }
 
 async function renderTabs() {
@@ -263,6 +268,11 @@ window.updateCurrentTabField = async function(fieldName, value) {
 
   tabData[fieldName] = value;
   await chrome.storage.local.set({ [key]: tabData });
+};
+
+// Helper function to get current tab ID (for history isolation)
+window.getCurrentTabId = function() {
+  return currentTabId;
 };
 
 // ==========================================

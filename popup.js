@@ -85,13 +85,18 @@ async function switchTab(tabId) {
 async function saveTabData(tabId) {
   if (!elements) return;
 
+  // Get base content from storage (not in DOM)
+  const storageData = await chrome.storage.local.get(['baseContent', 'baseFileName']);
+
   const tabData = {
     name: elements.tabName?.value || '',
     inputText: elements.inputText?.value || '',
     answerText: elements.answerText?.value || '',
     positivePrompt: elements.positivePrompt?.value || '',
     negativePrompt: elements.negativePrompt?.value || '',
-    gptModel: elements.gptModel?.value || 'gpt-4o-mini'
+    gptModel: elements.gptModel?.value || 'gpt-4o-mini',
+    baseContent: storageData.baseContent || '',
+    baseFileName: storageData.baseFileName || ''
   };
 
   // Update tab name in tabs array
@@ -121,12 +126,33 @@ async function loadTabData(tabId) {
   if (elements.negativePrompt) elements.negativePrompt.value = tabData.negativePrompt || '';
   if (elements.gptModel) elements.gptModel.value = tabData.gptModel || 'gpt-4o-mini';
 
+  // Update base file UI
+  const fileNameText = document.getElementById('baseFileNameText');
+  if (fileNameText) {
+    fileNameText.textContent = tabData.baseFileName || '';
+  }
+  if (elements.baseFileName) {
+    if (tabData.baseFileName) {
+      elements.baseFileName.classList.add('loaded');
+      if (elements.baseFileDeleteBtn) {
+        elements.baseFileDeleteBtn.style.display = '';
+      }
+    } else {
+      elements.baseFileName.classList.remove('loaded');
+      if (elements.baseFileDeleteBtn) {
+        elements.baseFileDeleteBtn.style.display = 'none';
+      }
+    }
+  }
+
   // КРИТИЧЕСКИ ВАЖНО: Синхронизировать глобальные ключи для content.js
   // content.js (плавающая кнопка) читает из глобальных ключей
   await chrome.storage.local.set({
     positivePrompt: tabData.positivePrompt || '',
     negativePrompt: tabData.negativePrompt || '',
-    gptModel: tabData.gptModel || 'gpt-4o-mini'
+    gptModel: tabData.gptModel || 'gpt-4o-mini',
+    baseContent: tabData.baseContent || '',
+    baseFileName: tabData.baseFileName || ''
   });
   console.log('[Tabs] Глобальные ключи синхронизированы для content.js');
 }

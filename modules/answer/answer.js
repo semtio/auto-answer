@@ -45,7 +45,10 @@ function initAnswerModule(elements, showSelectorStatus, hideSelectorStatus, show
           elements.baseFileDeleteBtn.style.display = '';
         }
 
-        // Save filename to storage
+        // Save filename to storage (DUAL SAVE: tab_data + global for content.js)
+        if (window.updateCurrentTabField) {
+          await window.updateCurrentTabField('baseFileName', file.name);
+        }
         await chrome.storage.local.set({ baseFileName: file.name });
 
         // Read file content and save it
@@ -54,6 +57,10 @@ function initAnswerModule(elements, showSelectorStatus, hideSelectorStatus, show
           const fileContent = event.target.result;
           const MAX_SAFE_LENGTH = 20000; // Maximum safe length before truncation
 
+          // DUAL SAVE: tab_data + global for content.js
+          if (window.updateCurrentTabField) {
+            await window.updateCurrentTabField('baseContent', fileContent);
+          }
           await chrome.storage.local.set({ baseContent: fileContent });
           console.log('[AA] Base file loaded and saved:', file.name, `(${fileContent.length} символов)`);
 
@@ -74,7 +81,11 @@ function initAnswerModule(elements, showSelectorStatus, hideSelectorStatus, show
   if (elements.baseFileDeleteBtn) {
     elements.baseFileDeleteBtn.addEventListener('click', async () => {
       if (confirm('Вы уверены, что хотите удалить файл базы данных?')) {
-        // Clear storage
+        // Clear storage (DUAL DELETE: tab_data + global)
+        if (window.updateCurrentTabField) {
+          await window.updateCurrentTabField('baseFileName', '');
+          await window.updateCurrentTabField('baseContent', '');
+        }
         await chrome.storage.local.remove(['baseFileName', 'baseContent']);
 
         // Update UI
@@ -313,7 +324,6 @@ function initAnswerModule(elements, showSelectorStatus, hideSelectorStatus, show
       'positivePrompt',
       'negativePrompt',
       'baseFileName',
-      'answerLanguage',
       'gptModel'
     ]);
 

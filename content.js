@@ -362,7 +362,6 @@
         'baseContent',
         'positivePrompt',
         'negativePrompt',
-        'answerLanguage',
         'gptModel'
       ]);
 
@@ -375,13 +374,15 @@
 
       console.log('[AA] API key found, building prompt');
 
-      // Build prompt with language preference
-      const language = settings.answerLanguage || 'ru';
-      const languageInstruction = language === 'ru'
-        ? 'Отвечай на русском языке.'
-        : 'Answer in English.';
+      // ОТЛАДКА: Вывести ЧТО прочитали из storage
+      console.log('[AA] ===== НАСТРОЙКИ ИЗ STORAGE =====');
+      console.log('[AA] gptModel:', settings.gptModel || '(не задано, используем gpt-4o-mini)');
+      console.log('[AA] positivePrompt:', settings.positivePrompt || '(пусто)');
+      console.log('[AA] negativePrompt:', settings.negativePrompt || '(пусто)');
+      console.log('[AA] baseContent:', settings.baseContent ? `${settings.baseContent.length} символов` : '(не загружена)');
 
-      let systemPrompt = `Ты - AI помощник для генерации ответов. ${languageInstruction}`;
+      // Build system prompt
+      let systemPrompt = 'Ты - AI помощник для генерации ответов.';
 
       if (settings.baseContent) {
         // Limit base content to prevent token limit errors
@@ -406,7 +407,10 @@
 
       // Use selected model (default: gpt-4o-mini)
       const model = settings.gptModel || 'gpt-4o-mini';
-      console.log('[AA] Using model:', model);
+      console.log('[AA] ===== ИТОГОВЫЙ ПРОМПТ =====');
+      console.log('[AA] Модель:', model);
+      console.log('[AA] Системный промпт:\n', systemPrompt);
+      console.log('[AA] ===== КОНЕЦ ПРОМПТА =====');
       console.log('[AA] Calling OpenAI API');
 
       // Call OpenAI API
@@ -423,7 +427,7 @@
             { role: 'user', content: selectedText }
           ],
           temperature: 0.7,
-          max_tokens: 500
+          max_tokens: 1500  // Увеличено с 500 до 1500 для более полных ответов
         })
       });
 
@@ -545,7 +549,6 @@
       // Get settings
       const settings = await chrome.storage.local.get([
         'apiKey',
-        'answerLanguage',
         'gptModel'
       ]);
 
@@ -554,12 +557,7 @@
         return;
       }
 
-      const language = settings.answerLanguage || 'ru';
-      const languageInstruction = language === 'ru'
-        ? 'Отвечай на русском языке.'
-        : 'Answer in English.';
-
-      const systemPrompt = `Ты - AI помощник для корректировки текстов. ${languageInstruction}\n\nТвоя задача - скорректировать предоставленный текст согласно инструкциям пользователя. Сохрани основной смысл, но примени указанные изменения.`;
+      const systemPrompt = 'Ты - AI помощник для корректировки текстов.\n\nТвоя задача - скорректировать предоставленный текст согласно инструкциям пользователя. Сохрани основной смысл, но примени указанные изменения.';
 
       const userPrompt = `Текущий текст:\n${currentAnswer}\n\nИнструкции по корректировке:\n${refinementInstructions}\n\nВыполни корректировку и верни только исправленный текст.`;
 

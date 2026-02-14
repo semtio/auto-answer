@@ -7,6 +7,239 @@
 const GITHUB_UPDATE_URL = 'https://github.com/semtio/auto-answer/archive/refs/heads/main.zip';
 
 // ==========================================
+// Tabs Management
+// ==========================================
+let tabs = [];
+let currentTabId = null;
+let isCreatingTab = false; // Флаг для предотвращения двойного создания
+
+async function loadTabs() {
+  const data = await chrome.storage.local.get(['tabs', 'currentTabId']);
+  tabs = data.tabs || [{ id: 1, name: 'Ответить', created: Date.now() }];
+  currentTabId = data.currentTabId || 1;
+  return { tabs, currentTabId };
+}
+
+async function saveTabs() {
+  await chrome.storage.local.set({ tabs, currentTabId });
+}
+
+async function createTab() {
+  // Предотвращаем двойное создание
+  if (isCreatingTab) return;
+
+  isCreatingTab = true;
+  try {
+    const newId = Math.max(...tabs.map(t => t.id), 0) + 1;
+    const newTab = {
+      id: newId,
+      name: `Вкладка ${tabs.length + 1}`, // Используем количество вкладок, а не ID
+      created: Date.now()
+    };
+    tabs.push(newTab);
+    currentTabId = newId;
+    await saveTabs();
+    await renderTabs();
+    await loadTabData(newId);
+  } finally {
+    isCreatingTab = false;
+  }
+}
+
+async function deleteTab(tabId) {
+  if (tabs.length === 1) {
+    alert('Нельзя удалить последнюю вкладку');
+    return;
+  }
+
+  const tabIndex = tabs.findIndex(t => t.id === tabId);
+  if (tabIndex === -1) return;
+
+  tabs.splice(tabIndex, 1);
+
+  // Remove tab data from storage
+  await chrome.storage.local.remove([`tab_${tabId}_data`]);
+
+  // Switch to first tab if current was deleted
+  if (currentTabId === tabId) {
+    currentTabId = tabs[0].id;
+    await loadTabData(currentTabId);
+  }
+
+  await saveTabs();
+  await renderTabs();
+}
+
+async function switchTab(tabId) {
+  // Save current tab data before switching
+  if (currentTabId) {
+    await saveTabData(currentTabId);
+  }
+
+  currentTabId = tabId;
+  await chrome.storage.local.set({ currentTabId });
+  await loadTabData(tabId);
+  await renderTabs();
+}
+
+async function saveTabData(tabId) {
+  if (!elements) return;
+
+  const tabData = {
+    name: elements.tabName?.value || '',
+    inputText: elements.inputText?.value || '',
+    answerText: elements.answerText?.value || '',
+    positivePrompt: elements.positivePrompt?.value || '',
+    negativePrompt: elements.negativePrompt?.value || '',
+    gptModel: elements.gptModel?.value || 'gpt-4o-mini'
+  };
+
+  // Update tab name in tabs array
+  const tab = tabs.find(t => t.id === tabId);
+  if (tab && tabData.name) {
+    tab.name = tabData.name;
+    await saveTabs();
+  }
+
+  await chrome.storage.local.set({ [`tab_${tabId}_data`]: tabData });
+}
+
+async function loadTabData(tabId) {
+  if (!elements) return;
+
+  const data = await chrome.storage.local.get([`tab_${tabId}_data`]);
+  const tabData = data[`tab_${tabId}_data`] || {};
+
+  const tab = tabs.find(t => t.id === tabId);
+
+  if (elements.tabName) {
+    elements.tabName.value = tabData.name || (tab?.name || '');
+  }
+  if (elements.inputText) elements.inputText.value = tabData.inputText || '';
+  if (elements.answerText) elements.answerText.value = tabData.answerText || '';
+  if (elements.positivePrompt) elements.positivePrompt.value = tabData.positivePrompt || '';
+  if (elements.negativePrompt) elements.negativePrompt.value = tabData.negativePrompt || '';
+  if (elements.gptModel) elements.gptModel.value = tabData.gptModel || 'gpt-4o-mini';
+
+  // КРИТИЧЕСКИ ВАЖНО: Синхронизировать глобальные ключи для content.js
+  // content.js (плавающая кнопка) читает из глобальных ключей
+  await chrome.storage.local.set({
+    positivePrompt: tabData.positivePrompt || '',
+    negativePrompt: tabData.negativePrompt || '',
+    gptModel: tabData.gptModel || 'gpt-4o-mini'
+  });
+  console.log('[Tabs] Глобальные ключи синхронизированы для content.js');
+}
+
+async function renderTabs() {
+  const dropdownBtn = document.getElementById('dropdownBtn');
+  const dropdownContent = document.getElementById('dropdownContent');
+
+  if (!dropdownBtn || !dropdownContent) return;
+
+  // Update button with current tab
+  const currentTab = tabs.find(t => t.id === currentTabId);
+  if (currentTab) {
+    dropdownBtn.innerHTML = `
+      <span class="tab-number">${tabs.indexOf(currentTab) + 1}</span>
+      <span class="tab-title">${currentTab.name}</span>
+      <i class="fas fa-chevron-down"></i>
+    `;
+  }
+
+  // Render dropdown items
+  const itemsHTML = tabs.map((tab, index) => `
+    <a href="#" class="dropdown-item ${tab.id === currentTabId ? 'active' : ''}" data-tab-id="${tab.id}">
+      <span class="tab-number">${index + 1}</span>
+      <span>${tab.name}</span>
+      ${tabs.length > 1 ? `<button class="delete-tab-btn" data-tab-id="${tab.id}" title="Удалить вкладку"><i class="fas fa-times"></i></button>` : ''}
+    </a>
+  `).join('');
+
+  dropdownContent.innerHTML = itemsHTML + `
+    <button class="dropdown-add-btn" id="addTabBtn">
+      <i class="fas fa-plus"></i>
+      <span>Добавить вкладку</span>
+    </button>
+  `;
+
+  // Attach event listeners
+  attachTabEventListeners();
+}
+
+function attachTabEventListeners() {
+  const dropdownItems = document.querySelectorAll('.dropdown-item');
+  const deleteButtons = document.querySelectorAll('.delete-tab-btn');
+  const addTabBtn = document.getElementById('addTabBtn');
+
+  dropdownItems.forEach(item => {
+    item.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const tabId = parseInt(item.dataset.tabId);
+      await switchTab(tabId);
+
+      // Close dropdown
+      const dropdownContent = document.getElementById('dropdownContent');
+      const dropdownBtn = document.getElementById('dropdownBtn');
+      if (dropdownContent) dropdownContent.classList.remove('show');
+      if (dropdownBtn) dropdownBtn.classList.remove('show');
+    });
+  });
+
+  deleteButtons.forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const tabId = parseInt(btn.dataset.tabId);
+      if (confirm('Удалить эту вкладку?')) {
+        await deleteTab(tabId);
+      }
+    });
+  });
+
+  if (addTabBtn) {
+    addTabBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await createTab();
+
+      // Close dropdown
+      const dropdownContent = document.getElementById('dropdownContent');
+      const dropdownBtn = document.getElementById('dropdownBtn');
+      if (dropdownContent) dropdownContent.classList.remove('show');
+      if (dropdownBtn) dropdownBtn.classList.remove('show');
+    });
+  }
+}
+
+// Helper function for modules to save current tab data (make it global)
+window.saveCurrentTabData = async function() {
+  if (currentTabId !== null) {
+    await saveTabData(currentTabId);
+  }
+};
+
+// Helper function to get current tab data
+window.getCurrentTabData = async function() {
+  if (currentTabId !== null) {
+    const data = await chrome.storage.local.get([`tab_${currentTabId}_data`]);
+    return data[`tab_${currentTabId}_data`] || {};
+  }
+  return {};
+};
+
+// Helper function to update a single field in current tab data
+window.updateCurrentTabField = async function(fieldName, value) {
+  if (currentTabId === null) return;
+
+  const key = `tab_${currentTabId}_data`;
+  const data = await chrome.storage.local.get([key]);
+  const tabData = data[key] || {};
+
+  tabData[fieldName] = value;
+  await chrome.storage.local.set({ [key]: tabData });
+};
+
+// ==========================================
 // DOM Elements - Get them lazily to avoid timing issues
 // ==========================================
 function getElements() {
@@ -19,6 +252,7 @@ function getElements() {
     generateAnswerBtn: document.getElementById('generateAnswer'),
     answerText: document.getElementById('answerText'),
     inputText: document.getElementById('inputText'),
+    tabName: document.getElementById('tabName'),
     selectElementBtn: document.getElementById('selectElementBtn'),
     selectorStatus: document.getElementById('selectorStatus'),
     settingsBtn: document.querySelector('.settings-btn'),
@@ -28,7 +262,6 @@ function getElements() {
     baseFileDeleteBtn: document.getElementById('baseFileDeleteBtn'),
     positivePrompt: document.getElementById('positivePrompt'),
     negativePrompt: document.getElementById('negativePrompt'),
-    answerLanguage: document.getElementById('answerLanguage'),
     gptModel: document.getElementById('gptModel'),
     modelDescription: document.getElementById('modelDescription'),
     historyContainer: document.getElementById('historyContainer'),
@@ -209,10 +442,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Re-get elements after modules are loaded
   elements = getElements();
 
+  // ========== Initialize Tab System ==========
+  await loadTabs();
+  await renderTabs();
+  await loadTabData(currentTabId);
+
   // ========== Dropdown Functionality ==========
   const dropdownBtn = document.getElementById('dropdownBtn');
   const dropdownContent = document.getElementById('dropdownContent');
-  const dropdownItems = document.querySelectorAll('.dropdown-item');
 
   if (dropdownBtn && dropdownContent) {
     dropdownBtn.addEventListener('click', () => {
@@ -221,36 +458,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  if (dropdownItems.length > 0) {
-    dropdownItems.forEach((item) => {
-      item.addEventListener('click', (e) => {
-        e.preventDefault();
-        const tabId = item.getAttribute('data-tab');
+  // Attach tab event listeners after rendering
+  attachTabEventListeners();
 
-        // Remove active class from all dropdown items
-        dropdownItems.forEach((i) => i.classList.remove('active'));
-        item.classList.add('active');
-
-        // Remove active class from all tab contents
-        document.querySelectorAll('.tab-content').forEach((content) => content.classList.remove('active'));
-
-        // Hide settings button active state
-        if (elements.settingsBtn) {
-          elements.settingsBtn.classList.remove('active');
+  // ========== Tab Name Input Handler ==========
+  if (elements.tabName) {
+    elements.tabName.addEventListener('blur', async () => {
+      const newName = elements.tabName.value.trim();
+      if (newName && currentTabId !== null) {
+        const tabIndex = tabs.findIndex(t => t.id === currentTabId);
+        if (tabIndex !== -1) {
+          tabs[tabIndex].name = newName;
+          await saveTabs();
+          await renderTabs();
+          attachTabEventListeners(); // Re-attach after re-render
         }
+      }
+    });
 
-        // Show corresponding content
-        const targetContent = document.getElementById(`tab-${tabId}`);
-        if (targetContent) {
-          targetContent.classList.add('active');
-        }
-
-        // Close dropdown
-        if (dropdownContent && dropdownBtn) {
-          dropdownContent.classList.remove('show');
-          dropdownBtn.classList.remove('show');
-        }
-      });
+    elements.tabName.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.target.blur(); // Trigger blur event to save
+      }
     });
   }
 
@@ -259,7 +488,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     elements.settingsBtn.addEventListener('click', () => {
       // Remove active class from all tab contents
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-      dropdownItems.forEach(i => i.classList.remove('active'));
+
+      // Remove active class from dropdown items
+      document.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('active'));
 
       // Show settings content
       const targetContent = document.getElementById('tab-settings');
@@ -271,6 +502,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       elements.settingsBtn.classList.add('active');
 
       // Close dropdown
+      const dropdownContent = document.getElementById('dropdownContent');
+      const dropdownBtn = document.getElementById('dropdownBtn');
       if (dropdownContent && dropdownBtn) {
         dropdownContent.classList.remove('show');
         dropdownBtn.classList.remove('show');

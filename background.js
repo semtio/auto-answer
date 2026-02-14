@@ -37,7 +37,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true;
   } else if (request.action === 'generateAnswer') {
-    generateAnswer(request.text, request.apiKey)
+    console.log('=== BACKGROUND: ПОЛУЧЕН REQUEST ===');
+    console.log('request.text:', request.text);
+    console.log('request.model:', request.model);
+    console.log('request.positivePrompt:', request.positivePrompt || '(ПУСТО В REQUEST!)');
+    console.log('request.negativePrompt:', request.negativePrompt || '(пусто)');
+    console.log('request.baseContent:', request.baseContent ? `${request.baseContent.length} символов` : '(ПУСТО В REQUEST!)');
+    console.log('request.language:', request.language);
+
+    generateAnswer(
+      request.text,
+      request.apiKey,
+      request.model,
+      request.positivePrompt,
+      request.negativePrompt,
+      request.baseContent,
+      request.language
+    )
       .then(result => sendResponse(result))
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true;
@@ -167,9 +183,41 @@ async function testAPIConnection(apiKey) {
 }
 
 // Generate answer using OpenAI API
-async function generateAnswer(text, apiKey) {
+async function generateAnswer(text, apiKey, model = 'gpt-4o-mini', positivePrompt = '', negativePrompt = '', baseContent = '') {
   try {
-    // Use gpt-3.5-turbo for faster and cheaper responses
+    console.log('=== BACKGROUND: ПОЛУЧЕНЫ ПАРАМЕТРЫ ===');
+    console.log('text:', text);
+    console.log('model:', model);
+    console.log('positivePrompt:', positivePrompt || '(ПУСТО!)');
+    console.log('negativePrompt:', negativePrompt || '(пусто)');
+    console.log('baseContent:', baseContent ? `${baseContent.length} символов` : '(ПУСТО!)');
+
+    // КРИТИЧЕСКИ ВАЖНО: Формирование системного промпта со ВСЕМИ настройками
+    let systemContent = '';
+
+    // 1. База данных (если есть) - идет первым блоком
+    if (baseContent && baseContent.trim()) {
+      systemContent += `БАЗА ДАННЫХ (обязательно используй эту информацию для ответа):\n\n${baseContent}\n\n`;
+      systemContent += '---\n\n';
+    }
+
+    // 2. Положительный промпт (основные инструкции)
+    if (positivePrompt && positivePrompt.trim()) {
+      systemContent += `ИНСТРУКЦИИ:\n${positivePrompt}\n\n`;
+    } else {
+      systemContent += 'Ты профессиональный помощник службы поддержки. Предоставляй точные, полезные и вежливые ответы.\n\n';
+    }
+
+    // 3. Отрицательный промпт (что НЕ делать)
+    if (negativePrompt && negativePrompt.trim()) {
+      systemContent += `ЧТО НЕ ДЕЛАТЬ (строго соблюдай эти ограничения):\n${negativePrompt}\n\n`;
+    }
+
+    console.log('=== ИТОГОВЫЙ СИСТЕМНЫЙ ПРОМПТ ===');
+    console.log(systemContent);
+    console.log('=== КОНЕЦ СИСТЕМНОГО ПРОМПТА ===');
+
+    // Отправка запроса к OpenAI
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -177,11 +225,11 @@ async function generateAnswer(text, apiKey) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: model, // НЕ HARDCODE! Используем модель из настроек
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful customer service representative. Provide professional, concise responses in Russian.'
+            content: systemContent
           },
           {
             role: 'user',
@@ -189,7 +237,7 @@ async function generateAnswer(text, apiKey) {
           }
         ],
         temperature: 0.7,
-        max_tokens: 500
+        max_tokens: 1500
       })
     });
 

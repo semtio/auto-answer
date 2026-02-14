@@ -10,6 +10,10 @@ function initAnswerModule(elements, showSelectorStatus, hideSelectorStatus, show
     const message = event.detail;
     if (message.text) {
       elements.inputText.value = message.text;
+      // КРИТИЧЕСКИ ВАЖНО: Сохранить выбранный текст в storage текущей вкладки
+      if (window.updateCurrentTabField) {
+        window.updateCurrentTabField('inputText', message.text);
+      }
       isSelectingElement = false;
       elements.selectElementBtn.classList.remove('active');
       hideSelectorStatus();
@@ -95,16 +99,25 @@ function initAnswerModule(elements, showSelectorStatus, hideSelectorStatus, show
   if (elements.positivePrompt) {
     elements.positivePrompt.addEventListener('change', async () => {
       const prompt = elements.positivePrompt.value;
+      // КРИТИЧЕСКИ ВАЖНО: Сохранить И в tab_data И в глобальный ключ
+      // Глобальный ключ нужен для content.js (плавающая кнопка на странице)
+      if (window.updateCurrentTabField) {
+        await window.updateCurrentTabField('positivePrompt', prompt);
+      }
       await chrome.storage.local.set({ positivePrompt: prompt });
-      console.log('Positive prompt saved');
+      console.log('Positive prompt saved (tab + global)');
     });
   }
 
   if (elements.negativePrompt) {
     elements.negativePrompt.addEventListener('change', async () => {
       const prompt = elements.negativePrompt.value;
+      // КРИТИЧЕСКИ ВАЖНО: Сохранить И в tab_data И в глобальный ключ
+      if (window.updateCurrentTabField) {
+        await window.updateCurrentTabField('negativePrompt', prompt);
+      }
       await chrome.storage.local.set({ negativePrompt: prompt });
-      console.log('Negative prompt saved');
+      console.log('Negative prompt saved (tab + global)');
     });
   }
 
@@ -124,22 +137,36 @@ function initAnswerModule(elements, showSelectorStatus, hideSelectorStatus, show
     }
   }
 
-  // Auto-save answer language
-  if (elements.answerLanguage) {
-    elements.answerLanguage.addEventListener('change', async () => {
-      const language = elements.answerLanguage.value;
-      await chrome.storage.local.set({ answerLanguage: language });
-      console.log('Answer language saved:', language);
-    });
-  }
-
   // Auto-save GPT model and update description
   if (elements.gptModel) {
     elements.gptModel.addEventListener('change', async () => {
       const model = elements.gptModel.value;
+      // КРИТИЧЕСКИ ВАЖНО: Сохранить И в tab_data И в глобальный ключ
+      if (window.updateCurrentTabField) {
+        await window.updateCurrentTabField('gptModel', model);
+      }
       await chrome.storage.local.set({ gptModel: model });
-      console.log('GPT model saved:', model);
+      console.log('GPT model saved (tab + global):', model);
       updateModelDescription();
+    });
+  }
+
+  // Auto-save input and answer text
+  if (elements.inputText) {
+    elements.inputText.addEventListener('blur', async () => {
+      const text = elements.inputText.value;
+      if (window.updateCurrentTabField) {
+        await window.updateCurrentTabField('inputText', text);
+      }
+    });
+  }
+
+  if (elements.answerText) {
+    elements.answerText.addEventListener('blur', async () => {
+      const text = elements.answerText.value;
+      if (window.updateCurrentTabField) {
+        await window.updateCurrentTabField('answerText', text);
+      }
     });
   }
 
@@ -215,23 +242,49 @@ function initAnswerModule(elements, showSelectorStatus, hideSelectorStatus, show
       elements.answerText.value = 'Генерирую ответ...';
 
       try {
-        const settings = await chrome.storage.local.get(['apiKey']);
+        // КРИТИЧЕСКИ ВАЖНО: Получить ВСЕ настройки перед генерацией
+        const settings = await chrome.storage.local.get(['apiKey', 'baseContent']);
         if (!settings.apiKey) {
           elements.answerText.value = 'Ошибка: API ключ не настроен. Перейдите в настройки.';
           return;
         }
 
         const userText = elements.inputText.value.trim();
+
+        // КРИТИЧЕСКИ ВАЖНО: Читать значения НАПРЯМУЮ из полей формы (DOM элементов)
+        // Это гарантирует, что мы получим актуальные значения, которые пользователь ввел
+        const positivePrompt = elements.positivePrompt?.value?.trim() || '';
+        const negativePrompt = elements.negativePrompt?.value?.trim() || '';
+        const gptModel = elements.gptModel?.value || 'gpt-4o-mini';
+        const baseContent = settings.baseContent || '';
+
+        // ОТЛАДКА: Вывести в консоль ЧТО ИМЕННО отправляем
+        console.log('=== ОТПРАВКА ЗАПРОСА НА ГЕНЕРАЦИЮ ===');
+        console.log('Текст вопроса:', userText);
+        console.log('Модель:', gptModel);
+        console.log('Положительный промпт:', positivePrompt || '(пусто)');
+        console.log('Отрицательный промпт:', negativePrompt || '(пусто)');
+        console.log('База данных:', baseContent ? `${baseContent.length} символов` : '(не загружена)');
+
+        // Отправить ВСЕ параметры в background для формирования правильного запроса
         const response = await chrome.runtime.sendMessage({
           action: 'generateAnswer',
+          apiKey: settings.apiKey,
           text: userText,
-          apiKey: settings.apiKey
+          model: gptModel,
+          positivePrompt: positivePrompt,
+          negativePrompt: negativePrompt,
+          baseContent: baseContent
         });
 
         if (response.success) {
           elements.answerText.value = response.answer;
-          // Save answer to storage
-          await chrome.storage.local.set({ lastGeneratedAnswer: response.answer });
+          // Save answer to current tab data
+          if (window.updateCurrentTabField) {
+            await window.updateCurrentTabField('answerText', response.answer);
+          } else {
+            await chrome.storage.local.set({ lastGeneratedAnswer: response.answer });
+          }
 
           // Save to history
           await saveToHistory(userText, response.answer);
@@ -291,11 +344,6 @@ function initAnswerModule(elements, showSelectorStatus, hideSelectorStatus, show
       if (elements.baseFileDeleteBtn) {
         elements.baseFileDeleteBtn.style.display = '';
       }
-    }
-
-    // Load answer language (default: Russian)
-    if (elements.answerLanguage) {
-      elements.answerLanguage.value = settings.answerLanguage || 'ru';
     }
 
     // Load GPT model (default: gpt-4o-mini)
